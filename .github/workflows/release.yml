@@ -44,7 +44,9 @@ jobs:
           # Per-arch tarballs are all the same binary today.
           # The slot exists so a dedicated build can be dropped in later
           # without changing anything in AutoAPI's _install_hashcat logic.
-          for arch in sm80 sm86 sm89 sm90 sm100; do
+          # sm120 = RTX 5090 (Blackwell consumer GB20x)
+          # sm100 = Blackwell data center (B100/B200/GB100)
+          for arch in sm80 sm86 sm89 sm90 sm100 sm120; do
             cp Hashcat-linux-x86_64.tar.gz Hashcat-linux-x86_64-${arch}.tar.gz
           done
 
@@ -69,3 +71,4 @@ jobs:
             Hashcat-linux-x86_64-sm89.tar.gz
             Hashcat-linux-x86_64-sm90.tar.gz
             Hashcat-linux-x86_64-sm100.tar.gz
+            Hashcat-linux-x86_64-sm120.tar.gz
