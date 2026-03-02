@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Release tag (e.g. 7.1.2-ubuntu22)'
+        required: true
+        default: '7.1.2-ubuntu22'
+
+jobs:
+  build-and-release:
+    name: Build and publish
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends clang make python3
+
+      - name: Build (static)
+        env:
+          TERM: xterm
+        run: make PRODUCTION=1 SHARED=0 ENABLE_LTO=0 CC=clang CXX=clang++
+
+      - name: Package runtime files
+        run: |
+          mkdir -p dist
+          cp hashcat dist/
+          cp hashcat.hcstat2 dist/
+          cp -r modules dist/
+          cp -r OpenCL dist/
+          [ -d bridges ] && cp -r bridges dist/ || true
+          [ -d feeds   ] && cp -r feeds   dist/ || true
+
+          # Generic tarball — works on any supported CUDA arch
+          tar -czf Hashcat-linux-x86_64.tar.gz -C dist .
+
+          # Per-arch tarballs are all the same binary today.
+          # The slot exists so a dedicated build can be dropped in later
+          # without changing anything in AutoAPI's _install_hashcat logic.
+          for arch in sm80 sm86 sm89 sm90 sm100; do
+            cp Hashcat-linux-x86_64.tar.gz Hashcat-linux-x86_64-${arch}.tar.gz
+          done
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event.inputs.release_tag }}
+          name: hashcat ${{ github.event.inputs.release_tag }}
+          body: |
+            hashcat ${{ github.event.inputs.release_tag }} — built on Ubuntu 22.04 (static, clang).
+
+            All `Hashcat-linux-x86_64-sm{arch}.tar.gz` assets are currently identical.
+            The same binary works across all supported CUDA architectures via JIT kernel
+            compilation. The per-arch slots allow dedicated builds to be dropped in later
+            without changing client-side logic.
+
+            **Contents:** `hashcat`, `hashcat.hcstat2`, `modules/`, `OpenCL/`, `bridges/`, `feeds/`
+          files: |
+            Hashcat-linux-x86_64.tar.gz
+            Hashcat-linux-x86_64-sm80.tar.gz
+            Hashcat-linux-x86_64-sm86.tar.gz
+            Hashcat-linux-x86_64-sm89.tar.gz
+            Hashcat-linux-x86_64-sm90.tar.gz
+            Hashcat-linux-x86_64-sm100.tar.gz
